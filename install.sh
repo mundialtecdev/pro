@@ -33,7 +33,8 @@ curl
 wget 
 unzip 
 ffmpeg 
-ca-certificates
+ca-certificates 
+file
 
 echo
 echo "🛑 Removendo instalação anterior..."
@@ -62,7 +63,9 @@ echo
 echo "📦 Validando ZIP..."
 
 if ! file /tmp/pro.zip | grep -qi "zip"; then
-echo "❌ Arquivo baixado não é um ZIP válido"
+echo "❌ O arquivo baixado não é um ZIP válido"
+echo "Conteúdo recebido:"
+file /tmp/pro.zip
 exit 1
 fi
 
@@ -73,19 +76,16 @@ unzip -oq /tmp/pro.zip -d /opt/pro
 
 rm -f /tmp/pro.zip
 
+if [ ! -f /opt/pro/o11pro ]; then
+echo "❌ Binário não encontrado em:"
+echo "   /opt/pro/o11pro"
 echo
-echo "🔍 Localizando binário..."
-
-BINARIO=$(find /opt/pro -type f -name "o11pro" | head -n1)
-
-if [ -z "$BINARIO" ]; then
-echo "❌ Binário o11pro não encontrado"
+echo "Arquivos encontrados:"
+find /opt/pro -type f
 exit 1
 fi
 
-chmod +x "$BINARIO"
-
-BIN_DIR=$(dirname "$BINARIO")
+chmod +x /opt/pro/o11pro
 
 echo
 echo "⚙️ Criando serviço systemd..."
@@ -98,8 +98,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=${BIN_DIR}
-ExecStart=${BINARIO} -p ${PORTA} -f /usr/bin/ffmpeg
+WorkingDirectory=/opt/pro
+ExecStart=/opt/pro/o11pro -p ${PORTA} -f /usr/bin/ffmpeg
 Restart=always
 RestartSec=5
 User=root
@@ -126,7 +126,9 @@ PASSWORD=$(journalctl -u o11pro -n 100 --no-pager | grep "Use temporary account"
 
 PUBLIC_IP=$(curl -s https://api.ipify.org || true)
 
-[ -z "$PUBLIC_IP" ] && PUBLIC_IP="SEU_IP"
+if [ -z "$PUBLIC_IP" ]; then
+PUBLIC_IP="SEU_IP"
+fi
 
 clear
 
@@ -141,14 +143,15 @@ echo
 echo "👤 Usuário:"
 echo "admin"
 echo
-echo "🔑 Senha:"
+echo "🔑 Senha Temporária:"
 echo "${PASSWORD}"
 echo
 echo "📂 Diretório:"
-echo "${BIN_DIR}"
+echo "/opt/pro"
 echo
 echo "📋 Comandos úteis:"
 echo "systemctl status o11pro"
 echo "journalctl -u o11pro -f"
 echo "systemctl restart o11pro"
 echo
+echo "✅ Instalação finalizada."
