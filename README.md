@@ -1,9 +1,1 @@
-# pro
-
-curl -L -o /tmp/install.sh \
-
-"https://raw.githubusercontent.com/mundialtecdev/pro/refs/heads/main/install.sh" \ 
-
-&& bash /tmp/install.sh \
-
-&& rm /tmp/install.sh
+curl -L -o /tmp/install.sh "https://raw.githubusercontent.com/mundialtecdev/pro/refs/heads/main/install.sh" && bash /tmp/install.sh && rm /tmp/install.sh
