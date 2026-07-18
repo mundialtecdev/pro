@@ -24,17 +24,11 @@ fi
 
 echo
 echo "📦 Atualizando repositórios..."
-apt-get update -y
+apt update -y
 
 echo
 echo "📦 Instalando dependências..."
-apt-get install -y 
-curl 
-wget 
-unzip 
-ffmpeg 
-ca-certificates 
-file
+apt install -y curl wget unzip ffmpeg ca-certificates file
 
 echo
 echo "🛑 Removendo instalação anterior..."
@@ -60,11 +54,10 @@ exit 1
 fi
 
 echo
-echo "📦 Validando ZIP..."
+echo "📦 Verificando arquivo baixado..."
 
 if ! file /tmp/pro.zip | grep -qi "zip"; then
 echo "❌ O arquivo baixado não é um ZIP válido"
-echo "Conteúdo recebido:"
 file /tmp/pro.zip
 exit 1
 fi
@@ -77,7 +70,7 @@ unzip -oq /tmp/pro.zip -d /opt/pro
 rm -f /tmp/pro.zip
 
 if [ ! -f /opt/pro/o11pro ]; then
-echo "❌ Binário não encontrado em:"
+echo "❌ Binário não encontrado:"
 echo "   /opt/pro/o11pro"
 echo
 echo "Arquivos encontrados:"
@@ -90,7 +83,7 @@ chmod +x /opt/pro/o11pro
 echo
 echo "⚙️ Criando serviço systemd..."
 
-cat >/etc/systemd/system/o11pro.service <<EOF
+cat > /etc/systemd/system/o11pro.service <<EOF
 [Unit]
 Description=O11Pro Service
 After=network.target
@@ -109,12 +102,15 @@ LimitNOFILE=infinity
 WantedBy=multi-user.target
 EOF
 
+echo
+echo "🔄 Recarregando systemd..."
+
 systemctl daemon-reload
 
 echo
 echo "🚀 Iniciando serviço..."
 
-systemctl enable o11pro >/dev/null
+systemctl enable o11pro
 systemctl restart o11pro
 
 echo
@@ -122,13 +118,15 @@ echo "⏳ Aguardando inicialização..."
 
 sleep 10
 
-PASSWORD=$(journalctl -u o11pro -n 100 --no-pager | grep "Use temporary account" | tail -1 | awk -F'admin / ' '{print $2}')
+PASSWORD=$(journalctl -u o11pro --no-pager -n 100 | grep "Use temporary account" | tail -1 | sed 's/.*admin / //')
 
 PUBLIC_IP=$(curl -s https://api.ipify.org || true)
 
 if [ -z "$PUBLIC_IP" ]; then
 PUBLIC_IP="SEU_IP"
 fi
+
+STATUS=$(systemctl is-active o11pro || true)
 
 clear
 
@@ -149,9 +147,13 @@ echo
 echo "📂 Diretório:"
 echo "/opt/pro"
 echo
+echo "📊 Status:"
+echo "${STATUS}"
+echo
 echo "📋 Comandos úteis:"
 echo "systemctl status o11pro"
 echo "journalctl -u o11pro -f"
 echo "systemctl restart o11pro"
 echo
 echo "✅ Instalação finalizada."
+echo
