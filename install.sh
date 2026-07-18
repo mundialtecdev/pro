@@ -7,10 +7,10 @@ clear
 echo "========================================="
 echo "         O11PRO INSTALLER"
 echo "========================================="
-echo ""
+echo
 
 if [ "$EUID" -ne 0 ]; then
-echo "❌ Execute como root."
+echo "❌ Execute como root"
 exit 1
 fi
 
@@ -18,58 +18,79 @@ read -p "🔢 Informe a porta do painel [8484]: " PORTA
 PORTA=${PORTA:-8484}
 
 if ! [[ "$PORTA" =~ ^[0-9]+$ ]]; then
-echo "❌ Porta inválida."
+echo "❌ Porta inválida"
 exit 1
 fi
 
-echo ""
-echo "📦 Atualizando pacotes..."
-apt update
+echo
+echo "📦 Atualizando repositórios..."
+apt-get update -y
 
-echo ""
-echo "🎬 Instalando FFmpeg..."
-apt install -y ffmpeg curl wget unzip ca-certificates
+echo
+echo "📦 Instalando dependências..."
+apt-get install -y 
+curl 
+wget 
+unzip 
+ffmpeg 
+ca-certificates
 
-echo ""
-echo "🛑 Parando instalação anterior (se existir)..."
+echo
+echo "🛑 Removendo instalação anterior..."
 
 systemctl stop o11pro >/dev/null 2>&1 || true
 systemctl disable o11pro >/dev/null 2>&1 || true
 
 rm -f /etc/systemd/system/o11pro.service
 
-echo ""
-echo "📁 Preparando diretório..."
-
 rm -rf /opt/pro
 mkdir -p /opt/pro
 
-echo ""
-echo "⬇️ Baixando arquivos..."
+echo
+echo "⬇️ Baixando pro.zip..."
 
-curl -L -o /tmp/pro.zip 
-"https://github.com/mundialtecdev/pro/raw/main/pro.zip"
+DOWNLOAD_URL="https://raw.githubusercontent.com/mundialtecdev/pro/main/pro.zip"
 
-echo ""
-echo "📦 Extraindo arquivos..."
+curl -fL "$DOWNLOAD_URL" -o /tmp/pro.zip
 
-unzip -o /tmp/pro.zip -d /opt/pro
-
-rm -f /tmp/pro.zip
-
-chmod -R 755 /opt/pro
-
-if [ ! -f /opt/pro/o11pro ]; then
-echo "❌ Binário /opt/pro/o11pro não encontrado."
+if [ ! -f /tmp/pro.zip ]; then
+echo "❌ Falha ao baixar pro.zip"
 exit 1
 fi
 
-chmod +x /opt/pro/o11pro
+echo
+echo "📦 Validando ZIP..."
 
-echo ""
+if ! file /tmp/pro.zip | grep -qi "zip"; then
+echo "❌ Arquivo baixado não é um ZIP válido"
+exit 1
+fi
+
+echo
+echo "📂 Extraindo arquivos..."
+
+unzip -oq /tmp/pro.zip -d /opt/pro
+
+rm -f /tmp/pro.zip
+
+echo
+echo "🔍 Localizando binário..."
+
+BINARIO=$(find /opt/pro -type f -name "o11pro" | head -n1)
+
+if [ -z "$BINARIO" ]; then
+echo "❌ Binário o11pro não encontrado"
+exit 1
+fi
+
+chmod +x "$BINARIO"
+
+BIN_DIR=$(dirname "$BINARIO")
+
+echo
 echo "⚙️ Criando serviço systemd..."
 
-cat > /etc/systemd/system/o11pro.service << EOF
+cat >/etc/systemd/system/o11pro.service <<EOF
 [Unit]
 Description=O11Pro Service
 After=network.target
@@ -77,8 +98,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/pro
-ExecStart=/opt/pro/o11pro -p ${PORTA} -f /usr/bin/ffmpeg
+WorkingDirectory=${BIN_DIR}
+ExecStart=${BINARIO} -p ${PORTA} -f /usr/bin/ffmpeg
 Restart=always
 RestartSec=5
 User=root
@@ -90,53 +111,44 @@ EOF
 
 systemctl daemon-reload
 
-echo ""
+echo
 echo "🚀 Iniciando serviço..."
 
-systemctl enable o11pro
+systemctl enable o11pro >/dev/null
 systemctl restart o11pro
 
-echo ""
+echo
 echo "⏳ Aguardando inicialização..."
 
-sleep 8
+sleep 10
 
 PASSWORD=$(journalctl -u o11pro -n 100 --no-pager | grep "Use temporary account" | tail -1 | awk -F'admin / ' '{print $2}')
 
 PUBLIC_IP=$(curl -s https://api.ipify.org || true)
 
-if [ -z "$PUBLIC_IP" ]; then
-PUBLIC_IP="SEU_IP"
-fi
+[ -z "$PUBLIC_IP" ] && PUBLIC_IP="SEU_IP"
 
 clear
 
-echo ""
+echo
 echo "========================================="
 echo "      ✅ O11PRO INSTALADO COM SUCESSO"
 echo "========================================="
-echo ""
-
-echo "🌐 URL:"
+echo
+echo "🌐 Painel:"
 echo "http://${PUBLIC_IP}:${PORTA}"
-echo ""
-
+echo
 echo "👤 Usuário:"
 echo "admin"
-echo ""
-
-echo "🔑 Senha Temporária:"
+echo
+echo "🔑 Senha:"
 echo "${PASSWORD}"
-echo ""
-
+echo
 echo "📂 Diretório:"
-echo "/opt/pro"
-echo ""
-
+echo "${BIN_DIR}"
+echo
 echo "📋 Comandos úteis:"
 echo "systemctl status o11pro"
 echo "journalctl -u o11pro -f"
 echo "systemctl restart o11pro"
-echo ""
-
-echo "✅ Instalação finalizada."
+echo
